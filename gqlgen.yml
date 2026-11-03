@@ -1,0 +1,19 @@
+schema:
+  - internal/graph/schema.graphqls
+exec:
+  filename: internal/graph/generated/generated.go
+  package: generated
+model:
+  filename: internal/graph/model/models_gen.go
+  package: model
+  model_template: internal/graph/templates/models.gotpl
+resolver:
+  layout: follow-schema
+  dir: internal/graph/resolver
+  filename_template: "{name}.resolvers.go"
+  package: resolver
+  preserve_resolver: true
+  omit_template_comment: true
+
+# Generation must not depend on local generated packages already existing.
+skip_mod_tidy: true

@@ -1,0 +1,144 @@
+"""commeng GraphQL API. Post and comment operations, pagination and live subscriptions."""
+directive @goField(forceResolver: Boolean, name: String) on FIELD_DEFINITION | INPUT_FIELD_DEFINITION
+
+"""Order of siblings. Pagination cursors must use the same sort."""
+enum CommentSort { NEWEST OLDEST }
+"""A hidden/deleted comment retains its structural position."""
+enum CommentState { VISIBLE HIDDEN DELETED }
+enum ModerationAction { HIDE RESTORE DELETE MOVE LOCK UNLOCK }
+
+type User { id: ID!, name: String! }
+type CommentAuthor { name: String!, avatarUrl: String!, isPostAuthor: Boolean! }
+"""Keyset pagination state. Use startCursor with before or endCursor with after."""
+type PageInfo { hasNextPage: Boolean!, hasPreviousPage: Boolean!, startCursor: String, endCursor: String }
+type PostEdge { cursor: String!, node: Post! }
+type PostConnection { edges: [PostEdge!]!, pageInfo: PageInfo! }
+type CommentEdge { cursor: String!, node: Comment! }
+"""One page of direct children of a post or comment (not the entire subtree)."""
+type CommentConnection { edges: [CommentEdge!]!, pageInfo: PageInfo! }
+
+"""A publication owned by a registered user."""
+type Post {
+  id: ID!
+  authorId: ID!
+  title: String!
+  body: String!
+  author: User! @goField(forceResolver: true)
+  createdAt: String!
+  updatedAt: String!
+  deleted: Boolean!
+  commentsEnabled: Boolean!
+  commentCount: Int!
+  treeVersion: String!
+  comments(first: Int = 20, after: String, before: String, sort: CommentSort = NEWEST): CommentConnection! @goField(forceResolver: true)
+}
+"""An arbitrarily nested comment. Fetch replies explicitly to avoid unbounded trees."""
+type Comment {
+  id: ID!
+  postId: ID!
+  parentId: ID
+  author: CommentAuthor!
+  body: String
+  state: CommentState!
+  locked: Boolean!
+  createdAt: String!
+  editedAt: String
+  permalink: String!
+  likesCount: Int!
+  viewerHasLiked: Boolean! @goField(forceResolver: true)
+  replyCount: Int!
+  replies(first: Int = 20, after: String, before: String, sort: CommentSort = NEWEST): CommentConnection! @goField(forceResolver: true)
+}
+"""Ancestors ordered nearest-parent-first. Pass nextBefore as before."""
+type AncestorConnection {
+  nodes: [Comment!]!
+  nextBefore: ID
+}
+
+"""Target and its ordinary sibling page, with the target's index in that page."""
+type CommentJump {
+  target: Comment!
+  page: CommentConnection!
+  pageNumber: Int!
+  indexInPage: Int!
+  ancestors: [Comment!]!
+}
+type CommentEvent {
+  sequence: String!
+  comment: Comment!
+  createdAt: String!
+}
+type CommentEventEdge { cursor: String!, node: CommentEvent! }
+type CommentEventConnection { edges: [CommentEventEdge!]!, pageInfo: PageInfo! }
+type Notification {
+  id: ID!
+  postId: ID!
+  commentId: ID!
+  kind: String!
+  createdAt: String!
+  readAt: String
+}
+type NotificationEdge { cursor: String!, node: Notification! }
+type NotificationConnection { edges: [NotificationEdge!]!, pageInfo: PageInfo! }
+type AuthPayload { token: String!, user: User! }
+input CreatePostInput { title: String!, body: String! }
+input EditPostInput { id: ID!, title: String!, body: String! }
+input CreateCommentInput { postId: ID!, parentId: ID, name: String, email: String, body: String! }
+input ModerateCommentInput {
+  commentId: ID!
+  action: ModerationAction!
+  newParentId: ID
+  expectedTreeVersion: String
+  reason: String = ""
+}
+
+"""Read posts, comments, exact sibling pages and ancestor paths."""
+type Query {
+  viewer: User
+  posts(first: Int = 20, after: String): PostConnection!
+  post(id: ID!): Post
+  comment(id: ID!): Comment
+  """Index-backed full-text search; results sorted by newest ID, independent of relevance rank."""
+  searchPosts(query: String!, first: Int = 20, after: String): PostConnection!
+  searchComments(query: String!, postId: ID, first: Int = 20, after: String): CommentConnection!
+  """Durable replay by strictly increasing per-post event sequence.
+  Read after a WebSocket disconnect to reconcile missed or duplicated events."""
+  commentEvents(postId: ID!, first: Int = 50, after: String): CommentEventConnection!
+  """Reply notifications for the current authenticated account."""
+  notifications(first: Int = 20, after: String, unreadOnly: Boolean = false): NotificationConnection!
+  """Load up to 100 ancestors, continuing upward from nextBefore."""
+  commentAncestors(commentId: ID!, before: ID, first: Int = 20): AncestorConnection!
+  """Find the normal page containing this comment, not a special unpaginated result."""
+  commentJump(postId: ID!, commentId: ID!, pageSize: Int = 20, sort: CommentSort = NEWEST, ancestorLimit: Int = 20): CommentJump
+}
+"""Register, write, vote and perform authorized moderation operations."""
+type Mutation {
+  """Register a user (password at least 12 bytes)."""
+  register(name: String!, email: String!, password: String!): User!
+  """Return a bearer session token, valid for seven days."""
+  login(email: String!, password: String!): AuthPayload!
+  """Revoke the bearer token from the current request."""
+  logout: Boolean!
+  createPost(input: CreatePostInput!): Post!
+  editPost(input: EditPostInput!): Post!
+  """Soft-delete a post; discussion links remain addressable as tombstones."""
+  deletePost(id: ID!): Post!
+  """Only registered comment authors may edit their own visible comments."""
+  editComment(id: ID!, body: String!): Comment!
+  """Erase a comment's text and guest details, preserve its place and replies."""
+  deleteComment(id: ID!): Comment!
+  """Mark 1 to 100 notifications as read, returning the number changed."""
+  markNotificationsRead(ids: [ID!]!): Int!
+  setPostCommentsEnabled(postId: ID!, enabled: Boolean!): Post!
+  """Guest: provide name and email. Signed-in: account identity takes precedence."""
+  createComment(input: CreateCommentInput!): Comment!
+  likeComment(id: ID!): Comment!
+  unlikeComment(id: ID!): Comment!
+  moderateComment(input: ModerateCommentInput!): Comment!
+}
+"""Live delivery is best-effort across PostgreSQL replicas; use commentEvents to recover after reconnect.
+In-memory mode provides process-local streams only."""
+type Subscription {
+  """Receive new comments after subscribing; no implicit event replay."""
+  commentAdded(postId: ID!): Comment!
+}

@@ -1,0 +1,27 @@
+version: "2"
+run:
+  timeout: 8m
+  build-tags: [integration]
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - errcheck
+    - revive
+    - gocyclo
+  settings:
+    gocyclo:
+      min-complexity: 30
+    revive:
+      rules:
+        - name: context-as-argument
+        - name: error-return
+        - name: indent-error-flow
+        - name: unexported-return
+        - name: receiver-naming
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,41 @@
+# Local secrets, settings, and persistent data (never commit).
+.local/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+/data/
+/pgdata/
+*.db
+*.sqlite
+*.sqlite3
+
+# Compiled executables and profiling/test artifacts.
+/bin/
+/build/
+/dist/
+/commeng
+coverage*.out
+coverage*.html
+*.test
+*.prof
+*.pprof
+*.trace
+*.log
+
+# Editor/OS/temporary files.
+.idea/
+.vscode/
+.fleet/
+*.iml
+.DS_Store
+Thumbs.db
+*.swp
+*~
+/tmp/
+.cache/
+
+# Keep go.sum and generated gqlgen source under version control.

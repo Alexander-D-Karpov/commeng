@@ -1,0 +1,66 @@
+# IntelliJ / GoLand HTTP Client examples. No credentials are checked in.
+# Start with `make run` and execute each request from the IDE.
+@base = http://127.0.0.1:8080
+
+### Readiness
+GET {{base}}/readyz
+
+### Fetch GraphQL schema
+GET {{base}}/schema.graphql
+
+### List posts (public)
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"query { posts(first: 5) { edges { cursor node { id title commentsEnabled } } pageInfo { endCursor hasNextPage } } }"}
+
+### Register a local testing account (change email/password before use)
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"mutation { register(name: \"Dev\", email: \"dev-local@example.invalid\", password: \"testing-password-123\") { id name } }"}
+
+### Login; copy the returned token into your private local HTTP client environment
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"mutation { login(email: \"dev-local@example.invalid\", password: \"testing-password-123\") { token user { id name } } }"}
+
+### Obtain an anonymous visitor identity
+POST {{base}}/auth/visitor
+
+### Submit guest comment (set postId to a real post ID)
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"mutation { createComment(input:{postId:\"1\",name:\"Guest\",email:\"guest@example.invalid\",body:\"Hello\"}) { id permalink } }"}
+
+### Read a thread with pagination
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"query { post(id:\"1\") { title comments(first:20,sort:NEWEST) { edges { node { id body replyCount } } pageInfo { endCursor hasNextPage } } } }"}
+
+### Disable new comments (requires author Bearer token)
+# POST {{base}}/graphql
+# Content-Type: application/json
+# Authorization: Bearer {{auth_token}}
+# {"query":"mutation { setPostCommentsEnabled(postId:\"1\",enabled:false){id commentsEnabled} }"}
+
+### Locate a target comment with its ordinary sibling page
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"query { commentJump(postId:\"1\",commentId:\"2\",pageSize:20){target{id permalink} pageNumber indexInPage page{edges{node{id body}} pageInfo{hasNextPage}}} }"}
+
+### Read event history after reconnect (pass a real endCursor as after)
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"query { commentEvents(postId:\"1\",first:20){edges{cursor node{sequence comment{id body}}} pageInfo{endCursor hasNextPage}} }"}
+
+### Search for visible comments
+POST {{base}}/graphql
+Content-Type: application/json
+
+{"query":"query { searchComments(query:\"Hello\",first:5){edges{node{id postId body}} pageInfo{endCursor hasNextPage}} }"}

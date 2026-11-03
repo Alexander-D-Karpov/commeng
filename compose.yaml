@@ -1,0 +1,68 @@
+services:
+  postgres:
+    image: postgres:18.6-bookworm
+    environment:
+      POSTGRES_DB: commeng
+      POSTGRES_USER: commeng
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-commeng-dev-only}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U commeng -d commeng"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  migrate:
+    image: commeng:local
+    build: .
+    command: ["migrate", "up"]
+    environment:
+      # Use PG's dedicated password environment variable so reserved URL
+      # characters in generated passwords do not corrupt the connection URI.
+      DATABASE_URL: "host=postgres port=5432 dbname=commeng user=commeng sslmode=disable"
+      PGPASSWORD: ${POSTGRES_PASSWORD:-commeng-dev-only}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    image: commeng:local
+    build: .
+    command: ["serve", "--storage", "postgres"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      HTTP_ADDR: :8080
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      PERMALINK_TEMPLATE: ${PERMALINK_TEMPLATE:-}
+      # Use PG's dedicated password environment variable so reserved URL
+      # characters in generated passwords do not corrupt the connection URI.
+      DATABASE_URL: "host=postgres port=5432 dbname=commeng user=commeng sslmode=disable"
+      PGPASSWORD: ${POSTGRES_PASSWORD:-commeng-dev-only}
+      COMMENG_SIGNING_KEY: ${COMMENG_SIGNING_KEY:-}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:-}
+      METRICS_ADDR: ${METRICS_ADDR:-:9090}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SAMPLE_RATE: ${OTEL_SAMPLE_RATE:-0.1}
+    healthcheck:
+      test: ["CMD", "/commeng", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:${HTTP_PORT:-8080}:8080"
+    expose: ["9090"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+volumes:
+  pgdata:

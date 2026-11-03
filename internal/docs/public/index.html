@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>commeng · Apollo Sandbox</title>
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main id="sandbox" aria-label="Apollo GraphQL Sandbox"></main>
+  <div id="fallback" role="alert">
+    <h1>commeng · GraphQL API</h1>
+    <p>The Apollo Sandbox could not load. It needs access to Apollo's CDN. Your API remains available.</p>
+    <nav>
+      <a href="/schema.graphql">View GraphQL schema</a>
+      <a id="open-external" href="https://studio.apollographql.com/sandbox/explorer" rel="noopener noreferrer" target="_blank">Open Apollo Studio</a>
+    </nav>
+  </div>
+  <script defer src="https://embeddable-sandbox.cdn.apollographql.com/v2/embeddable-sandbox.umd.production.min.js"></script>
+  <script defer src="./app.js"></script>
+</body>
+</html>

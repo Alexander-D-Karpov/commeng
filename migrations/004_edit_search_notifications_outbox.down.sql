@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS commeng_outbox_after_insert ON comment_events;
+DROP FUNCTION IF EXISTS commeng_notify_event();
+DROP INDEX IF EXISTS comments_search_gin;
+DROP INDEX IF EXISTS posts_search_gin;
+DROP TABLE IF EXISTS notifications;
+DROP TABLE IF EXISTS comment_events;
+ALTER TABLE comments DROP COLUMN IF EXISTS edited_at;
+ALTER TABLE posts DROP COLUMN IF EXISTS deleted;
+ALTER TABLE posts DROP COLUMN IF EXISTS event_version;
+ALTER TABLE posts DROP COLUMN IF EXISTS updated_at;
